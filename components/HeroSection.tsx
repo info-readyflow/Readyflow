@@ -198,7 +198,7 @@ const HeroSection = () => {
           <Link href="/pricing" className="group relative w-full sm:w-auto">
              <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl blur opacity-40 group-hover:opacity-60 transition-opacity duration-300" />
              <button className="relative w-full sm:w-auto px-8 py-4 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                Get Started Free <ArrowRight className="w-5 h-5" />
+                Get Started Now <ArrowRight className="w-5 h-5" />
              </button>
           </Link>
 
