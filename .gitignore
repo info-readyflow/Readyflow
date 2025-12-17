@@ -43,12 +43,16 @@ next-env.d.ts
 # --- SECURITY: FIREBASE ADMIN KEYS ---
 # Ignore all JSON files to be safe (except package/config files)
 *.json
+
+# ! --- IMPORTANT EXCEPTIONS --- !
 !package.json
+!package-lock.json
 !tsconfig.json
 !next.config.json
 !jsconfig.json
 !.eslintrc.json
+!vercel.json
 
-# Explicitly ignore the specific key file (just in case)
+# Explicitly ignore the specific key file (just in case the wildcard fails)
 firebase-service-account.json
 service-account.json
