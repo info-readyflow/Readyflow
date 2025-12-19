@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Script from "next/script";
 import { useRouter } from 'next/navigation';
-import { auth } from "@/lib/firebase"; // Make sure this path matches your project
+import { auth } from "@/lib/firebase"; 
 import { 
   Check, 
   Zap, 
@@ -16,7 +16,9 @@ import {
   Calendar as CalendarIcon,
   Clock,
   X,
-  ChevronRight
+  ChevronRight,
+  Lock,   // Added
+  LogIn   // Added
 } from 'lucide-react';
 
 // --- CONFIG ---
@@ -34,16 +36,18 @@ export default function PricingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
+  // --- NEW: Login Modal State ---
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
   const yearlyDiscount = 0.3; 
   const monthlyPrice = 29;
   const yearlyPrice = Math.round(monthlyPrice * 12 * (1 - yearlyDiscount));
 
-  // --- 1. PAYMENT SUCCESS HANDLER (Step 3: Verification) ---
+  // --- 1. PAYMENT SUCCESS HANDLER ---
   const handlePaymentSuccess = async (response: any, orderId: string) => {
     try {
         if (!auth.currentUser) return;
 
-        // Call your backend to verify signature and update DB
         const verifyRes = await fetch("/api/razorpay/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -51,7 +55,7 @@ export default function PricingPage() {
                 orderCreationId: orderId,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
-                userId: auth.currentUser.uid, // Sending User ID to update the correct doc
+                userId: auth.currentUser.uid, 
             }),
         });
 
@@ -69,12 +73,11 @@ export default function PricingPage() {
     }
   };
 
-  // --- 2. TRIGGER PAYMENT (Step 1: Create Order) ---
+  // --- 2. TRIGGER PAYMENT ---
   const handleRazorpay = async () => {
-    // A. Check Auth
+    // A. Check Auth - UPDATED LOGIC
     if (!auth.currentUser) {
-        alert("Please log in to upgrade your plan.");
-        router.push("/login"); // Uncomment if you have a login route
+        setShowLoginModal(true); // Show the custom modal instead of alert
         return;
     }
 
@@ -98,15 +101,14 @@ export default function PricingPage() {
             description: "Premium Toolkit Access",
             order_id: order.id, 
             handler: function (response: any) {
-                // D. Verify Payment on Success
                 handlePaymentSuccess(response, order.id);
             },
             prefill: {
                 name: auth.currentUser.displayName || "",
                 email: auth.currentUser.email || "",
-                contact: "", // You can pull phone number from DB if you have it
+                contact: "", 
             },
-            theme: { color: "#ea580c" }, // Brand Orange
+            theme: { color: "#ea580c" }, 
         };
 
         const rzp1 = new (window as any).Razorpay(options);
@@ -139,7 +141,6 @@ export default function PricingPage() {
   return (
     <main className="min-h-screen bg-black text-white pt-24 pb-20 overflow-x-hidden font-sans">
       
-      {/* REQUIRED: Load Razorpay Script */}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
 
       {/* Background Ambience */}
@@ -163,10 +164,10 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* --- PRICING GRID (2 Main Cards) --- */}
+        {/* --- PRICING GRID --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-24">
           
-          {/* CARD 1: THE TOOLKIT (₹29) */}
+          {/* CARD 1: THE TOOLKIT */}
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-b from-orange-500/20 to-transparent rounded-3xl blur-xl group-hover:blur-2xl transition-all opacity-50"></div>
             
@@ -196,7 +197,6 @@ export default function PricingPage() {
                   </span>
                 </div>
                 
-                {/* Toggle Switch */}
                 <div className="flex items-center gap-3 mt-4 text-xs font-medium">
                   <button 
                     onClick={() => setBillingCycle('monthly')}
@@ -232,7 +232,7 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* CARD 2: STORE SETUP (₹4,999) */}
+          {/* CARD 2: STORE SETUP */}
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent rounded-3xl blur-xl group-hover:blur-2xl transition-all opacity-30"></div>
             
@@ -285,7 +285,7 @@ export default function PricingPage() {
 
         </div>
 
-        {/* --- CUSTOM DEVELOPMENT SHOWCASE (The "Examples" Section) --- */}
+        {/* --- CUSTOM DEVELOPMENT SHOWCASE --- */}
         <div className="max-w-5xl mx-auto border-t border-white/10 pt-20 mb-20">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Need Custom Engineering?</h2>
@@ -295,7 +295,6 @@ export default function PricingPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-            
             {/* Example 1 */}
             <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-8 hover:border-purple-500/50 transition-colors group">
               <div className="flex items-center gap-4 mb-6">
@@ -327,10 +326,8 @@ export default function PricingPage() {
                 Need a feature that no app on the store provides? We code custom logic specific to your business needs (e.g., custom checkout flows, pincode validators).
               </p>
             </div>
-
           </div>
 
-          {/* MEETING SCHEDULER BUTTON */}
           <div className="mt-12 text-center">
             <button 
               onClick={() => setIsSchedulerOpen(true)}
@@ -364,8 +361,6 @@ export default function PricingPage() {
       {isSchedulerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-300">
-            
-            {/* Modal Header */}
             <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#161616]">
               <h3 className="font-bold text-white flex items-center gap-2">
                 <CalendarIcon size={16} className="text-orange-500"/> Schedule Meeting
@@ -374,10 +369,7 @@ export default function PricingPage() {
                 <X size={20} />
               </button>
             </div>
-
             <div className="p-6">
-              
-              {/* STEP 1: Reason */}
               {meetingStep === 1 && (
                 <div className="animate-in slide-in-from-right duration-300">
                   <label className="text-sm text-gray-400 block mb-2">What is the agenda of this meeting?</label>
@@ -399,18 +391,14 @@ export default function PricingPage() {
                   </div>
                 </div>
               )}
-
-              {/* STEP 2: Date & Time */}
               {meetingStep === 2 && (
                 <div className="animate-in slide-in-from-right duration-300">
                   <div className="mb-6">
                     <label className="text-sm text-gray-400 block mb-3 flex items-center gap-2"><CalendarIcon size={14}/> Select Date</label>
-                    {/* Custom Calendar Grid */}
                     <div className="bg-black border border-white/10 rounded-xl p-3">
-                       <SimpleCalendar selected={selectedDate} onSelect={setSelectedDate} />
+                        <SimpleCalendar selected={selectedDate} onSelect={setSelectedDate} />
                     </div>
                   </div>
-
                   {selectedDate && (
                     <div className="mb-6 animate-in fade-in slide-in-from-top-2">
                       <label className="text-sm text-gray-400 block mb-3 flex items-center gap-2"><Clock size={14}/> Select Time</label>
@@ -427,7 +415,6 @@ export default function PricingPage() {
                       </div>
                     </div>
                   )}
-
                   <div className="flex justify-between items-center pt-4 border-t border-white/10">
                     <button onClick={() => setMeetingStep(1)} className="text-sm text-gray-500 hover:text-white">Back</button>
                     <button 
@@ -440,9 +427,42 @@ export default function PricingPage() {
                   </div>
                 </div>
               )}
-
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- NEW: LOGIN REQUIRED MODAL --- */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#111] border border-gray-700 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-in zoom-in-95 duration-200">
+                <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X size={20}/></button>
+                
+                <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Lock size={32} className="text-orange-500" />
+                </div>
+                
+                <h3 className="text-xl font-bold text-white mb-2">Account Required</h3>
+                <p className="text-gray-400 mb-6 text-sm leading-relaxed">
+                    To access the premium toolkit and manage your subscription, you need to be logged in.
+                </p>
+
+                <div className="flex flex-col gap-3">
+                    <button 
+                        onClick={() => router.push('/login')} 
+                        className="w-full py-3 bg-white hover:bg-gray-200 text-black rounded-xl text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2"
+                    >
+                        <LogIn size={18} />
+                        Log In / Sign Up
+                    </button>
+                    <button 
+                        onClick={() => setShowLoginModal(false)}
+                        className="w-full py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
         </div>
       )}
 

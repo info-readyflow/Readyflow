@@ -1,8 +1,7 @@
-// lib/db.ts
 import { db } from "./firebase"; 
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
 
-// 1. Create User Profile if it doesn't exist (We call this when they log in)
+// 1. Create User Profile if it doesn't exist (Called on Login)
 export const createUserProfile = async (user: any) => {
   if (!user) return;
 
@@ -10,7 +9,6 @@ export const createUserProfile = async (user: any) => {
   const userSnap = await getDoc(userRef);
 
   if (!userSnap.exists()) {
-    // New User! Create their default profile in the database
     await setDoc(userRef, {
       uid: user.uid,
       name: user.displayName || "User",
@@ -23,24 +21,40 @@ export const createUserProfile = async (user: any) => {
       toolsUsage: {
         popupBuilder: 0,
         policyGenerator: 0,
-        roiCalculator: 0
+        roiCalculator: 0,
+        smartChatbot: 0
       }
     });
   }
 };
 
-// 2. Track Tool Usage (We call this when they click a tool)
+// 2. Fail-Safe Track Tool Usage (Fixes "No document to update" error)
 export const trackToolUsage = async (userId: string, toolKey: string) => {
   if (!userId) return;
   
   const userRef = doc(db, "users", userId);
   
   try {
-    await updateDoc(userRef, {
-      toolsUsedCount: increment(1), // Adds 1 to total count
-      [`toolsUsage.${toolKey}`]: increment(1), // Adds 1 to specific tool count
-      lastActive: serverTimestamp()
-    });
+    const snap = await getDoc(userRef);
+    
+    if (!snap.exists()) {
+      // If doc missing, create it using setDoc with merge
+      await setDoc(userRef, {
+        uid: userId,
+        toolsUsedCount: 1,
+        toolsUsage: { [toolKey]: 1 },
+        memberSince: serverTimestamp(),
+        plan: "Free Starter",
+        status: "Active"
+      }, { merge: true });
+    } else {
+      // If doc exists, update it normally
+      await updateDoc(userRef, {
+        toolsUsedCount: increment(1),
+        [`toolsUsage.${toolKey}`]: increment(1),
+        lastActive: serverTimestamp()
+      });
+    }
   } catch (error) {
     console.error("Error tracking usage:", error);
   }

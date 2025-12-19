@@ -2,6 +2,10 @@
 import React, { useState } from 'react';
 import { Copy, Check, ShieldCheck, AlertTriangle, FileText } from 'lucide-react';
 
+// --- FIREBASE IMPORTS (Added for Tracking) ---
+import { auth } from "@/lib/firebase"; 
+import { trackToolUsage } from "@/lib/db"; 
+
 const PolicyGenerator = () => {
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'privacy' | 'terms' | 'refund' | 'shipping'>('privacy');
@@ -27,16 +31,27 @@ const PolicyGenerator = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleCopy = () => {
+  // --- UPDATED COPY HANDLER WITH TRACKING ---
+  const handleCopy = async () => {
     let textToCopy = "";
     if (activeTab === 'privacy') textToCopy = generatePrivacy();
     if (activeTab === 'terms') textToCopy = generateTerms();
     if (activeTab === 'refund') textToCopy = generateRefund();
     if (activeTab === 'shipping') textToCopy = generateShipping();
 
+    // 1. Copy to Clipboard
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+
+    // 2. Track Usage (Logs to Firebase)
+    if (auth.currentUser) {
+        try {
+            await trackToolUsage(auth.currentUser.uid, 'policyGenerator');
+        } catch (error) {
+            console.error("Tracking error:", error);
+        }
+    }
   };
 
   // --- GENERATORS ---
@@ -291,4 +306,4 @@ We currently do not ship outside India. (Edit this section if you ship internati
   );
 };
 
-export default PolicyGenerator; 
+export default PolicyGenerator;

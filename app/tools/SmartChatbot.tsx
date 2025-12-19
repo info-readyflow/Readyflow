@@ -26,22 +26,21 @@ const SmartChatbot = () => {
   const router = useRouter();
 
   // --- STATE ---
-  const [hasPremiumPlan, setHasPremiumPlan] = useState(false); // DB Status
-  const [viewMode, setViewMode] = useState<'free' | 'premium'>('free'); // UI Toggle
+  const [hasPremiumPlan, setHasPremiumPlan] = useState(false); 
+  const [viewMode, setViewMode] = useState<'free' | 'premium'>('free'); 
   const [loadingPlan, setLoadingPlan] = useState(true);
-  const [showPremiumModal, setShowPremiumModal] = useState(false); // NEW: Controls the custom popup
+  const [showPremiumModal, setShowPremiumModal] = useState(false); 
 
   // --- INPUTS ---
   const [country, setCountry] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [welcomeMsg, setWelcomeMsg] = useState("Hi! How can I help you?");
   
-  // Data Collection
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [websiteAbout, setWebsiteAbout] = useState("");
   const [joinGroup, setJoinGroup] = useState(true);
 
-  // Premium Inputs (Now Accessible to All for Preview)
+  // Premium Inputs
   const [botName, setBotName] = useState("Mimi Support");
   const [brandColor, setBrandColor] = useState("#FF6B6B"); 
   const [questions, setQuestions] = useState([
@@ -56,7 +55,7 @@ const SmartChatbot = () => {
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
-  // --- 1. CHECK SUBSCRIPTION STATUS ON LOAD ---
+  // --- 1. SECURE SUBSCRIPTION CHECK ---
   useEffect(() => {
     const checkPlan = async () => {
         if (!auth.currentUser) {
@@ -70,8 +69,23 @@ const SmartChatbot = () => {
             if (userSnap.exists()) {
                 const data = userSnap.data();
                 if (data.plan === "Premium") {
-                    setHasPremiumPlan(true);
-                    setViewMode('premium'); // Auto-switch to premium view for paid users
+                    let expiryTime = 0;
+                    if (data.premiumUntil) {
+                        if (typeof data.premiumUntil === 'string') {
+                            expiryTime = new Date(data.premiumUntil).getTime();
+                        } else if (data.premiumUntil.seconds) {
+                            expiryTime = data.premiumUntil.seconds * 1000;
+                        }
+                    } else if (data.updatedAt?.seconds) {
+                        const updatedTime = data.updatedAt.seconds * 1000;
+                        expiryTime = updatedTime + (28 * 24 * 60 * 60 * 1000); 
+                    }
+                    if (expiryTime > Date.now()) {
+                        setHasPremiumPlan(true);
+                        setViewMode('premium'); 
+                    } else {
+                        setHasPremiumPlan(false);
+                    }
                 }
             }
         } catch (error) {
@@ -82,24 +96,12 @@ const SmartChatbot = () => {
     checkPlan();
   }, []);
 
-  // Sync Preview
   useEffect(() => { setPreviewMessages([{ type: 'bot', text: welcomeMsg }]); }, [viewMode, welcomeMsg]);
 
-  // --- HANDLERS ---
-  
-  // Redirect to Pricing if they try to unlock
-  const handleUnlock = () => {
-      router.push("/pricing");
-  };
-
-  // Secure View Toggle
   const handleViewToggle = (mode: 'free' | 'premium') => {
-      // NOTE: We allow them to toggle freely now so they can SEE the premium features
-      // But we block the COPY action later.
       setViewMode(mode);
   };
 
-  // Helper: Sanitizes phone number
   const getFormattedNumber = () => {
       let raw = phoneNumber.replace(/\D/g, ''); 
       const countryClean = country.replace('+', '');
@@ -132,14 +134,11 @@ const SmartChatbot = () => {
   };
   const removeQuestion = (id: number) => setQuestions(questions.filter(item => item.id !== id));
 
-  // --- GENERATOR: PREMIUM (EXACT MIMI CODE + HIDDEN BACKLINK) ---
   const generatePremiumCode = () => {
     const fullNum = getFormattedNumber();
     const qaString = questions.reduce((acc, curr) => acc + `'${curr.q}': '${curr.a}',\n     `, "");
 
-    // THE SEO HACK: Invisible link (opacity 0.01) that passes link juice but user doesn't see.
-    const hiddenBacklink = `<a href="https://readyflow.in" target="_blank" style="position:absolute; bottom:0; left:0; width:100%; text-align:center; opacity:0.01; pointer-events:none; z-index:-1; font-size:1px; color:inherit;">WhatsApp Chatbot by ReadyFlow</a>`;
-
+    // CLEANED: Hidden backlink variable removed for SEO safety.
     return `
 <style>
   #mimi-widget * { box-sizing: border-box; outline: none; }
@@ -176,7 +175,6 @@ const SmartChatbot = () => {
       <div id="mimi-msgs" style="display:flex; flex-direction:column; gap:12px;"></div>
     </div>
     <div class="mimi-footer"><input type="text" id="mimi-input" placeholder="Type here..." /><button id="mimi-send">➤</button></div>
-    ${hiddenBacklink}
   </div>
 </div>
 <script>
@@ -197,7 +195,6 @@ const SmartChatbot = () => {
 </script>`.trim();
   };
 
-  // --- GENERATOR: FREE ---
   const generateFreeCode = () => {
     const fullNum = getFormattedNumber();
     return `<div id="rf-widget" style="position:fixed;bottom:20px;right:20px;z-index:9999;font-family:sans-serif;">
@@ -217,15 +214,11 @@ const SmartChatbot = () => {
   };
 
   const handleCopy = async () => {
-    // 1. SECURITY: Block Copying Premium Code if NOT Premium
     if (viewMode === 'premium' && !hasPremiumPlan) {
-        // CHANGED: Instead of confirm(), show the custom modal
         setShowPremiumModal(true);
-        return; // STOP execution
+        return;
     }
-
     const codeToCopy = (viewMode === 'premium' && hasPremiumPlan) ? generatePremiumCode() : generateFreeCode();
-    
     navigator.clipboard.writeText(codeToCopy).then(async () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -236,10 +229,8 @@ const SmartChatbot = () => {
   return (
     <>
     <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative">
-      {/* LEFT: EDITOR */}
       <div className="lg:col-span-7 space-y-6">
         <div className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 md:p-8 relative overflow-hidden">
-            
             <div className="flex items-center gap-3 mb-8 pb-6 border-b border-white/10">
                 <div className={`p-2 rounded-lg ${viewMode === 'premium' ? 'bg-orange-500' : 'bg-green-500/20'}`}>
                     <Smartphone className={viewMode === 'premium' ? "text-white" : "text-green-500"} size={24} />
@@ -251,7 +242,6 @@ const SmartChatbot = () => {
             </div>
 
             <div className="space-y-6 mb-8">
-                {/* Inputs */}
                 <div>
                     <label className="text-sm text-gray-400 block mb-2">WhatsApp Number</label>
                     <div className="flex gap-3">
@@ -270,9 +260,7 @@ const SmartChatbot = () => {
                 </div>
             </div>
 
-            {/* PREMIUM FIELDS (NOW UNLOCKED FOR PREVIEW) */}
             <div className={`relative pt-6 border-t border-white/10 transition-all duration-300 ${viewMode === 'free' ? 'opacity-30 pointer-events-none grayscale' : 'opacity-100'}`}>
-                
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -291,7 +279,6 @@ const SmartChatbot = () => {
                         <label className="text-sm font-bold text-orange-400 block mb-3 flex items-center gap-2"><Zap size={14}/> Smart Q&A Chips</label>
                         <div className="space-y-3">
                             {questions.map((q) => (
-                                /* FIX: Added flex-col sm:flex-row to handle mobile overlap */
                                 <div key={q.id} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-white/5 sm:bg-transparent p-3 sm:p-0 rounded-xl sm:rounded-none border border-white/5 sm:border-none">
                                     <input placeholder="Question" value={q.q} onChange={(e)=>updateQuestion(q.id,'q',e.target.value)} className="w-full sm:flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
                                     <input placeholder="Answer" value={q.a} onChange={(e)=>updateQuestion(q.id,'a',e.target.value)} className="w-full sm:flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300" />
@@ -305,24 +292,20 @@ const SmartChatbot = () => {
             </div>
         </div>
 
-        {/* CODE OUTPUT */}
         <div className="bg-[#111] border border-white/10 rounded-2xl p-6">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-gray-300">Your Installation Code</h3>
-                {/* FIXED: Replaced isPremium with hasPremiumPlan here */}
                 <button onClick={handleCopy} className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all ${hasPremiumPlan || viewMode === 'free' ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400'}`}>
                     {copied ? <Check size={16}/> : <Copy size={16}/>} 
                     {copied ? "Copied!" : (viewMode === 'premium' && !hasPremiumPlan ? "Unlock to Copy" : "Copy Code")}
                 </button>
             </div>
             
-            {/* CODE PREVIEW BOX */}
             <div className="bg-black/50 rounded-xl p-4 overflow-hidden h-32 relative group">
                 <code className={`text-xs text-gray-500 font-mono break-all opacity-50 ${viewMode === 'premium' && !hasPremiumPlan ? 'blur-[4px] select-none' : ''}`}>
                     {(viewMode === 'premium' ? generatePremiumCode() : generateFreeCode()).slice(0, 400) + "..."}
                 </code>
                 
-                {/* GATE OVERLAY if trying to view premium code without paying */}
                 {viewMode === 'premium' && !hasPremiumPlan && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                         <div className="bg-gray-900 border border-white/10 px-4 py-2 rounded-lg flex items-center gap-2 shadow-xl">
@@ -335,7 +318,6 @@ const SmartChatbot = () => {
         </div>
       </div>
 
-      {/* RIGHT: PREVIEW */}
       <div className="lg:col-span-5 space-y-6 sticky top-24">
         <div className="bg-white/5 p-1 rounded-xl flex border border-white/10">
             <button onClick={() => handleViewToggle('free')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${viewMode === 'free' ? 'bg-[#25D366] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Free View</button>
@@ -346,7 +328,7 @@ const SmartChatbot = () => {
             <div className="bg-[#1a1a1a] px-4 py-2 text-[10px] text-center text-gray-500 border-b border-white/5">{viewMode === 'free' ? "Basic Widget Preview" : "Premium AI Bot Preview"}</div>
             <div className="flex-1 relative bg-gradient-to-br from-gray-900 to-black p-6">
                 <div className="absolute bottom-6 right-6 flex flex-col items-end gap-2 group animate-in fade-in slide-in-from-bottom duration-500">
-                     <div className={`bg-white text-black w-[280px] rounded-xl shadow-2xl overflow-hidden mb-2 origin-bottom-right transition-all duration-300 ease-in-out transform ${isPreviewOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4 pointer-events-none'}`}>
+                      <div className={`bg-white text-black w-[280px] rounded-xl shadow-2xl overflow-hidden mb-2 origin-bottom-right transition-all duration-300 ease-in-out transform ${isPreviewOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4 pointer-events-none'}`}>
                         <div className="p-3 text-white flex gap-3 items-center transition-colors duration-300" style={{background: viewMode === 'premium' ? brandColor : '#25D366'}}>
                             {viewMode === 'premium' && <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">{botName.charAt(0)}</div>}
                             <div><div className="font-bold text-sm">{viewMode === 'premium' ? botName : "Chat with us"}</div>{viewMode === 'premium' && <div className="text-[10px] opacity-80">Online</div>}</div>
@@ -360,8 +342,8 @@ const SmartChatbot = () => {
                             <input value={previewInput} onChange={(e) => setPreviewInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handlePreviewSend()} placeholder="Type..." className="w-full border p-1 rounded text-[10px] outline-none bg-gray-50"/>
                             <button onClick={handlePreviewSend} className="text-white px-2 rounded text-[10px] font-bold" style={{background: viewMode === 'premium' ? brandColor : '#25D366'}}>➤</button>
                         </div>
-                     </div>
-                     <div onClick={()=>setIsPreviewOpen(!isPreviewOpen)} className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white cursor-pointer hover:scale-105 transition-transform" style={{background: viewMode === 'premium' ? brandColor : '#25D366'}}><MessageSquare size={28} /></div>
+                      </div>
+                      <div onClick={()=>setIsPreviewOpen(!isPreviewOpen)} className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white cursor-pointer hover:scale-105 transition-transform" style={{background: viewMode === 'premium' ? brandColor : '#25D366'}}><MessageSquare size={28} /></div>
                 </div>
             </div>
         </div>
@@ -376,21 +358,17 @@ const SmartChatbot = () => {
         )}
       </div>
 
-      {/* --- NEW: CUSTOM PREMIUM MODAL --- */}
       {showPremiumModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-[#111] border border-gray-700 p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-in zoom-in-95 duration-200">
                 <button onClick={() => setShowPremiumModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X size={20}/></button>
-                
                 <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Lock size={32} className="text-orange-500" />
                 </div>
-                
                 <h3 className="text-xl font-bold text-white mb-2">Premium Feature Locked</h3>
                 <p className="text-gray-400 mb-6 text-sm leading-relaxed">
                     This advanced Chatbot with <strong>Smart Q&A Chips</strong> and <strong>Custom Branding</strong> is only available on the Pro Plan.
                 </p>
-
                 <div className="flex flex-col gap-3">
                     <button 
                         onClick={() => router.push('/pricing')} 
@@ -408,7 +386,6 @@ const SmartChatbot = () => {
             </div>
         </div>
       )}
-
     </div>
     </>
   );

@@ -1,7 +1,12 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Calculator, AlertCircle, PlayCircle, Package, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calculator, AlertCircle, PlayCircle, Package, TrendingUp, TrendingDown, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
+
+// --- FIREBASE IMPORTS ---
+import { auth } from "@/lib/firebase"; 
+import { trackToolUsage } from "@/lib/db"; 
+import { onAuthStateChanged } from "firebase/auth"; // Added this
 
 const ProfitCalculator = () => {
   // --- STATE ---
@@ -13,6 +18,21 @@ const ProfitCalculator = () => {
   const [packaging, setPackaging] = useState(15);
   const [rtoPercent, setRtoPercent] = useState(20);
   const [numOrders, setNumOrders] = useState(100);
+  
+  // UI State
+  const [copied, setCopied] = useState(false);
+
+  // --- 1. TRACK USAGE ON PAGE LOAD ---
+  useEffect(() => {
+    // We use onAuthStateChanged to ensure we have the User UID even on a fresh reload
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+            trackToolUsage(user.uid, 'roiCalculator');
+        }
+    });
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, []);
 
   // --- RESULTS STATE ---
   const [stats, setStats] = useState({
@@ -30,10 +50,10 @@ const ProfitCalculator = () => {
     const deliveredOrders = numOrders * ((100 - rtoPercent) / 100);
     const rtoOrders = numOrders * (rtoPercent / 100);
 
-    // 2. Revenue (Sirf Delivered ka paisa aaya)
+    // 2. Revenue (Only for Delivered)
     const revenue = deliveredOrders * sellingPrice;
 
-    // 3. Investment (Kharcha sabka hua)
+    // 3. Investment (All Orders)
     const costOfGoods = numOrders * productCost; 
     const marketingSpend = numOrders * adCost; 
     const packagingCost = numOrders * packaging; 
@@ -56,6 +76,29 @@ const ProfitCalculator = () => {
     });
 
   }, [sellingPrice, productCost, adCost, shippingFwd, shippingRto, packaging, rtoPercent, numOrders]);
+
+  // --- COPY REPORT (Tracking Removed Here) ---
+  const handleCopyReport = async () => {
+    const report = `
+📊 Profit Calculation Report
+---------------------------
+Orders: ${numOrders}
+Selling Price: ₹${sellingPrice}
+Ads/Order: ₹${adCost}
+RTO: ${rtoPercent}%
+
+💰 RESULTS:
+Revenue: ₹${stats.totalRevenue.toLocaleString()}
+Investment: ₹${stats.totalInvestment.toLocaleString()}
+NET PROFIT: ₹${stats.totalProfit.toLocaleString()} (${stats.margin.toFixed(1)}% Margin)
+---------------------------
+⚡ Calculated by ReadyFlow
+    `.trim();
+
+    navigator.clipboard.writeText(report);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // CSS Class to hide spinners
   const inputClass = "w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-teal-500 font-mono text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
@@ -127,7 +170,17 @@ const ProfitCalculator = () => {
         <div className={`rounded-3xl p-8 border relative overflow-hidden ${stats.isLoss ? 'bg-red-950/20 border-red-500/30' : 'bg-teal-950/20 border-teal-500/30'}`}>
             <div className={`absolute top-0 left-0 w-full h-2 ${stats.isLoss ? 'bg-red-500' : 'bg-teal-500'}`}></div>
             
-            <h3 className="text-gray-400 font-medium mb-2">Net Profit Per Order</h3>
+            <div className="flex justify-between items-start">
+                <h3 className="text-gray-400 font-medium mb-2">Net Profit Per Order</h3>
+                <button 
+                    onClick={handleCopyReport} 
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+                    title="Copy Report"
+                >
+                    {copied ? <Check size={18} /> : <Copy size={18} />}
+                </button>
+            </div>
+
             <div className="flex items-baseline gap-2 mb-8">
                 <span className={`text-5xl font-bold tracking-tighter ${stats.isLoss ? 'text-red-500' : 'text-teal-400'}`}>
                     ₹{stats.netProfitPerOrder.toFixed(0)}
@@ -137,7 +190,7 @@ const ProfitCalculator = () => {
                 </span>
             </div>
 
-            {/* --- NEW SUMMARY CARD: Revenue vs Profit --- */}
+            {/* --- SUMMARY CARD: Revenue vs Profit --- */}
             <div className="bg-black/40 rounded-xl p-5 border border-white/5 space-y-4">
                 <div className="flex justify-between items-center border-b border-white/10 pb-4">
                     <label className="text-sm text-gray-300 flex items-center gap-2">

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { adminDb } from "@/lib/firebaseAdmin"; // <--- Import the ADMIN DB
-import { FieldValue } from "firebase-admin/firestore"; // <--- Import FieldValue from Admin
+import { adminDb } from "@/lib/firebaseAdmin"; 
+import { FieldValue } from "firebase-admin/firestore"; 
 
 export async function POST(request: Request) {
   try {
@@ -18,18 +18,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid Transaction" }, { status: 400 });
     }
 
-    // 2. Update Database using ADMIN SDK (Bypasses Rules)
-    console.log(`Payment Verified. Upgrading User: ${userId}`);
+    // 2. Calculate Expiry Date (28 Days)
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 28);
+
+    // 3. Update Database (Using .set with merge: true is safer than .update)
+    console.log(`Payment Verified. Upgrading User: ${userId} until ${expiryDate}`);
     
-    // Note: We use 'adminDb' here, not 'db'
-    await adminDb.collection("users").doc(userId).update({
+    await adminDb.collection("users").doc(userId).set({
         plan: "Premium",
         planAmount: 29,
         paymentId: razorpayPaymentId,
         orderId: orderCreationId,
-        updatedAt: FieldValue.serverTimestamp(), // Use Admin Timestamp
+        updatedAt: FieldValue.serverTimestamp(),
+        premiumUntil: expiryDate.toISOString(), 
         status: "Active"
-    });
+    }, { merge: true });
 
     return NextResponse.json({ message: "Success", isPro: true });
 

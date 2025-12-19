@@ -27,8 +27,8 @@ export default function PopupBuilder() {
   const [activeTemplate, setActiveTemplate] = useState<TemplateType>('simple');
   
   // Logic State
-  const [hasPremiumPlan, setHasPremiumPlan] = useState(false); // Actual DB Status
-  const [isPro, setIsPro] = useState(false); // UI Toggle Status
+  const [hasPremiumPlan, setHasPremiumPlan] = useState(false); 
+  const [isPro, setIsPro] = useState(false); 
   const [loadingPlan, setLoadingPlan] = useState(true);
 
   // UI State
@@ -37,10 +37,13 @@ export default function PopupBuilder() {
   const [spinRotation, setSpinRotation] = useState(0);
   const [devicePreview, setDevicePreview] = useState<'desktop' | 'mobile'>('desktop');
   
+  // Custom Modal State
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
   // Timer Logic
   const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 30, seconds: 45 });
   
-  // --- 1. CHECK SUBSCRIPTION STATUS ON LOAD ---
+  // --- 1. SECURE SUBSCRIPTION CHECK ---
   useEffect(() => {
     const checkPlan = async () => {
         if (!auth.currentUser) {
@@ -54,7 +57,22 @@ export default function PopupBuilder() {
             if (userSnap.exists()) {
                 const data = userSnap.data();
                 if (data.plan === "Premium") {
-                    setHasPremiumPlan(true);
+                    let expiryTime = 0;
+                    if (data.premiumUntil) {
+                        if (typeof data.premiumUntil === 'string') {
+                            expiryTime = new Date(data.premiumUntil).getTime();
+                        } else if (data.premiumUntil.seconds) {
+                            expiryTime = data.premiumUntil.seconds * 1000;
+                        }
+                    } else if (data.updatedAt?.seconds) {
+                        const updatedTime = data.updatedAt.seconds * 1000;
+                        expiryTime = updatedTime + (28 * 24 * 60 * 60 * 1000); 
+                    }
+                    if (expiryTime > Date.now()) {
+                        setHasPremiumPlan(true);
+                    } else {
+                        setHasPremiumPlan(false);
+                    }
                 }
             }
         } catch (error) {
@@ -111,7 +129,6 @@ export default function PopupBuilder() {
     { id: 'exit', name: 'Exit Intent', icon: TrendingUp, status: 'soon', color: 'text-cyan-400' },
   ];
 
-  // Helper to check if current template is locked
   const currentTemplateStatus = templates.find(t => t.id === activeTemplate)?.status;
   const isLive = currentTemplateStatus === 'live';
 
@@ -127,14 +144,10 @@ export default function PopupBuilder() {
     }, 1500);
   };
 
-  // --- NEW: SECURE SWITCH HANDLER ---
   const handleProSwitch = (checked: boolean) => {
       if (checked && !hasPremiumPlan) {
-          // If they try to turn it ON but haven't paid -> Redirect
-          if (confirm("🔒 This is a Premium Feature. Upgrade now to unlock?")) {
-              router.push("/pricing");
-          }
-          return; // Stop the switch from toggling
+          setShowUpgradeModal(true);
+          return; 
       }
       setIsPro(checked);
   };
@@ -157,21 +170,20 @@ export default function PopupBuilder() {
     document.body.removeChild(textArea);
   };
 
-  // --- UPDATED COPY HANDLER WITH TRACKING ---
   const handleCopy = async () => {
+    if (isPro && !hasPremiumPlan) {
+        setShowUpgradeModal(true);
+        return;
+    }
+
     const code = generateCode();
-    
-    // 1. Copy Logic
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(code).then(async () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        
-        // 2. TRACKING (Only runs if copy was successful)
         if (auth.currentUser) {
             await trackToolUsage(auth.currentUser.uid, 'popupBuilder');
         }
-
       }).catch(() => copyToClipboardFallback(code));
     } else {
       copyToClipboardFallback(code);
@@ -179,7 +191,10 @@ export default function PopupBuilder() {
   };
 
   const generateCode = () => {
-    const watermarkHTML = isPro ? '' : `
+    // FIX: Removed hidden link for Pro users. Only render visible link for Free users.
+    const watermarkHTML = isPro 
+      ? "" 
+      : `
     <a href="https://readyflow.in" target="_blank" style="display:block; margin-top:15px; font-size:11px; color:#cbd5e1; text-decoration:none; font-weight:500; font-family:sans-serif;">
       ⚡ Powered by ReadyFlow
     </a>`;
@@ -208,7 +223,6 @@ export default function PopupBuilder() {
   </div>
 </div>
 <script>
-  // Delay configured by user: ${content.delay} seconds
   setTimeout(() => { document.getElementById('rf-overlay').classList.add('show'); }, ${content.delay * 1000});
 </script>`;
     }
@@ -245,7 +259,6 @@ export default function PopupBuilder() {
   </div>
 </div>
 <script>
-  // Delay configured by user: ${content.delay} seconds
   setTimeout(() => { document.getElementById('rf-overlay').classList.add('show'); }, ${content.delay * 1000});
 </script>`;
     }
@@ -270,7 +283,7 @@ export default function PopupBuilder() {
 
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
         
-        {/* Header - Fixed Padding for clipping issues */}
+        {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500 pb-1">
             Build High-Converting Popups
@@ -333,10 +346,10 @@ export default function PopupBuilder() {
             </div>
           </div>
 
-          {/* --- MIDDLE & RIGHT COLUMN (Editor & Preview) --- */}
+          {/* --- MIDDLE & RIGHT COLUMN --- */}
           <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-8 w-full">
             
-            {/* 1. EDITOR (Dynamic Inputs) */}
+            {/* 1. EDITOR */}
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold text-white mb-1">Customize Design</h2>
@@ -345,7 +358,6 @@ export default function PopupBuilder() {
 
               <div className="space-y-5 bg-[#0a0a0a] border border-white/10 p-6 rounded-2xl">
                 
-                {/* HEADLINE (Except WhatsApp) */}
                 {activeTemplate !== 'whatsapp' && (
                   <div className="space-y-2">
                     <label className="text-xs text-gray-400 font-bold uppercase tracking-wide flex items-center gap-2">
@@ -364,7 +376,6 @@ export default function PopupBuilder() {
                   </div>
                 )}
 
-                {/* COMMON DESCRIPTION INPUT */}
                 {(activeTemplate === 'simple' || activeTemplate === 'image' || activeTemplate === 'cookie' || activeTemplate === 'exit') && (
                   <>
                     <div className="space-y-2">
@@ -415,7 +426,6 @@ export default function PopupBuilder() {
                   </>
                 )}
 
-                {/* WHATSAPP INPUTS */}
                 {activeTemplate === 'whatsapp' && (
                   <>
                     <div className="space-y-2">
@@ -441,7 +451,6 @@ export default function PopupBuilder() {
                   </>
                 )}
 
-                {/* SALES POP INPUTS */}
                 {activeTemplate === 'sales' && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2 col-span-2">
@@ -477,7 +486,6 @@ export default function PopupBuilder() {
                   </div>
                 )}
 
-                {/* SPIN WHEEL INPUTS */}
                 {activeTemplate === 'spin' && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
@@ -495,7 +503,6 @@ export default function PopupBuilder() {
                   </div>
                 )}
 
-                {/* COUNTDOWN INPUTS */}
                 {activeTemplate === 'countdown' && (
                   <>
                     <div className="space-y-2">
@@ -509,7 +516,6 @@ export default function PopupBuilder() {
                   </>
                 )}
 
-                {/* COLOR PICKER (Except WhatsApp) */}
                 {activeTemplate !== 'whatsapp' && (
                   <div className="space-y-2">
                     <label className="text-xs text-gray-400 font-bold uppercase tracking-wide flex items-center gap-2">
@@ -534,7 +540,6 @@ export default function PopupBuilder() {
                   </div>
                 )}
 
-                {/* DELAY SLIDER (Always visible for supported types) */}
                 {activeTemplate !== 'exit' && activeTemplate !== 'whatsapp' && (
                     <div className="space-y-2 pt-2 border-t border-white/5">
                         <label className="text-xs text-gray-400 font-bold uppercase tracking-wide flex items-center gap-2">
@@ -584,7 +589,6 @@ export default function PopupBuilder() {
                   </button>
                 </div>
               ) : (
-                // --- VOTING CARD (COMPLETE) ---
                 <div className="p-8 bg-[#0a0a0a] border border-orange-500/20 rounded-2xl text-center relative overflow-hidden min-h-[220px] flex flex-col justify-center items-center">
                   <div className="absolute inset-0 bg-orange-500/5"></div>
                   
@@ -620,9 +624,8 @@ export default function PopupBuilder() {
               )}
             </div>
 
-            {/* 2. PREVIEW AREA (Right Side) */}
+            {/* 2. PREVIEW AREA */}
             <div className="relative flex flex-col gap-4">
-                {/* Device Toggle */}
                 <div className="flex justify-end gap-2">
                     <button 
                         onClick={() => setDevicePreview('desktop')}
@@ -638,12 +641,10 @@ export default function PopupBuilder() {
                     </button>
                 </div>
 
-                {/* Preview Container */}
                 <div className="flex justify-center">
                     <div className={`transition-all duration-500 ease-in-out bg-white rounded-xl overflow-hidden shadow-2xl relative border border-gray-800 flex items-center justify-center
                         ${devicePreview === 'mobile' ? 'w-[375px] h-[667px]' : 'w-full h-[600px]'}`}
                     >
-                        {/* --- COMING SOON OVERLAY (New) --- */}
                         {!isLive && (
                             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
                                 <div className="w-full bg-orange-500/90 py-3 text-center transform -rotate-3 shadow-xl backdrop-blur-md">
@@ -652,12 +653,8 @@ export default function PopupBuilder() {
                             </div>
                         )}
 
-                        {/* Fake Website Background */}
                         <div className="absolute inset-0 bg-gray-100 opacity-100 bg-[url('https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-image_large.png')] bg-cover bg-center grayscale opacity-10"></div>
                         
-                        {/* --- RENDER LOGIC --- */}
-                        
-                        {/* 1. SIMPLE POPUP */}
                         {activeTemplate === 'simple' && (
                             <div className="relative bg-white w-[85%] max-w-[320px] p-6 rounded-xl text-center shadow-xl border-t-4 animate-in fade-in duration-500" style={{ borderColor: content.color }}>
                                 <div className="absolute top-2 right-3 text-gray-400 cursor-pointer"><X size={18}/></div>
@@ -669,7 +666,6 @@ export default function PopupBuilder() {
                             </div>
                         )}
 
-                        {/* 2. IMAGE POPUP */}
                         {activeTemplate === 'image' && (
                              <div className="relative bg-white w-[90%] max-w-[340px] rounded-xl text-center shadow-xl overflow-hidden animate-in fade-in duration-500">
                                 <div className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-gray-600 shadow-sm z-10 pb-1 cursor-pointer">×</div>
@@ -686,40 +682,6 @@ export default function PopupBuilder() {
                             </div>
                         )}
 
-                        {/* 3. WHATSAPP (Corner) */}
-                        {activeTemplate === 'whatsapp' && (
-                            <div className="absolute bottom-6 right-6 flex flex-col items-end gap-3 animate-in slide-in-from-bottom-10 fade-in duration-500">
-                                <div className="bg-white p-4 rounded-xl rounded-br-none shadow-xl max-w-[240px] relative border border-gray-100">
-                                    <p className="text-xs text-gray-600 leading-relaxed">
-                                        {content.subheadline || "Hi! Click here to chat with us."}
-                                    </p>
-                                    <div className="absolute -bottom-2 right-0 w-4 h-4 bg-white transform rotate-45 border-r border-b border-gray-100"></div>
-                                </div>
-                                <div className="bg-[#25D366] w-14 h-14 rounded-full flex items-center justify-center shadow-lg text-white hover:scale-110 transition-transform cursor-pointer">
-                                    <MessageCircle size={30} fill="white" />
-                                </div>
-                                {!isPro && <div className="text-[9px] text-gray-400 bg-white/90 px-2 py-1 rounded shadow-sm border">⚡ ReadyFlow</div>}
-                            </div>
-                        )}
-
-                        {/* 4. SALES POP (Bottom Left) */}
-                        {activeTemplate === 'sales' && (
-                            <div className="absolute bottom-6 left-6 bg-white rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] p-4 flex items-center gap-3 animate-in slide-in-from-bottom-10 fade-in duration-700 max-w-[280px] border border-gray-100">
-                                <div className="h-12 w-12 bg-gray-100 rounded-md object-cover flex-shrink-0 bg-[url('https://i.pravatar.cc/100?img=33')] bg-cover border border-gray-200" />
-                                <div>
-                                    <p className="text-xs font-bold text-gray-800 leading-tight">
-                                        {content.customerName} <span className="font-normal text-gray-500">from</span> {content.customerLocation}
-                                    </p>
-                                    <p className="text-[11px] text-gray-500 mt-0.5">
-                                        purchased <span style={{color: content.color}} className="font-bold">{content.productName}</span>
-                                    </p>
-                                    <p className="text-[9px] text-gray-400 mt-1">{content.timeAgo}</p>
-                                </div>
-                                {!isPro && <div className="absolute -top-2 -right-2 text-[8px] bg-white shadow-sm text-gray-400 px-1.5 py-0.5 rounded border">⚡</div>}
-                            </div>
-                        )}
-
-                        {/* 5. SPIN WHEEL */}
                         {activeTemplate === 'spin' && (
                             <div className="relative animate-in zoom-in fade-in duration-500 flex flex-col items-center">
                                 <h3 className="mb-6 text-2xl font-black text-gray-800 drop-shadow-sm uppercase tracking-tight">{content.headline}</h3>
@@ -751,70 +713,6 @@ export default function PopupBuilder() {
                             </div>
                         )}
 
-                        {/* 6. COOKIE BAR */}
-                        {activeTemplate === 'cookie' && (
-                            <div className="absolute bottom-0 left-0 w-full bg-white border-t p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom-full duration-500">
-                                <div className="flex items-center gap-3">
-                                    <Cookie size={24} className="text-orange-500" />
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-900">{content.headline}</p>
-                                        <p className="text-xs text-gray-600">{content.subheadline}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button className="text-xs font-bold px-4 py-2 rounded border hover:bg-gray-50 transition-colors text-gray-700">Decline</button>
-                                    <button className="text-xs font-bold px-4 py-2 rounded text-white shadow-md hover:opacity-90 transition-opacity" style={{ background: content.color }}>{content.buttonText}</button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 7. COUNTDOWN (New) */}
-                        {activeTemplate === 'countdown' && (
-                            <div className="relative bg-white w-[90%] max-w-[380px] p-6 rounded-2xl text-center shadow-2xl border-t-8 border-red-500 animate-in fade-in duration-500">
-                                <div className="absolute top-2 right-3 text-gray-400 cursor-pointer"><X size={18}/></div>
-                                <h2 className="text-2xl font-black text-gray-900 mb-1 uppercase tracking-tight">{content.countdownTitle}</h2>
-                                <p className="text-sm text-red-500 font-bold mb-6">{content.countdownOffer}</p>
-                                
-                                <div className="flex justify-center gap-3 mb-6">
-                                    {[timeLeft.hours, timeLeft.minutes, timeLeft.seconds].map((t, i) => (
-                                        <div key={i} className="flex flex-col">
-                                            <div className="w-16 h-16 bg-gray-900 rounded-lg flex items-center justify-center text-2xl font-mono font-bold text-white shadow-lg">
-                                                {t.toString().padStart(2, '0')}
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 mt-1 uppercase font-bold">{['Hrs', 'Min', 'Sec'][i]}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                
-                                <button className="w-full py-3 rounded-lg text-white font-bold text-sm uppercase tracking-wider shadow-lg hover:opacity-90 transition-opacity" style={{ background: content.color }}>
-                                    Claim Offer Now
-                                </button>
-                                {!isPro && <div className="mt-4 text-[9px] text-gray-300">⚡ Powered by ReadyFlow</div>}
-                            </div>
-                        )}
-
-                        {/* 8. EXIT INTENT (New) */}
-                        {activeTemplate === 'exit' && (
-                            <div className="relative bg-white w-[90%] max-w-[400px] rounded-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-500">
-                                <div className="h-2 bg-red-500 w-full"></div>
-                                <div className="p-8 text-center">
-                                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✋</div>
-                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">{content.exitHeadline}</h2>
-                                    <p className="text-gray-600 mb-6">{content.exitOffer}</p>
-                                    
-                                    <div className="space-y-3">
-                                        <button className="w-full py-3 rounded-lg text-white font-bold text-sm shadow-md hover:opacity-90" style={{ background: content.color }}>
-                                            {content.buttonText}
-                                        </button>
-                                        <button className="text-xs text-gray-400 hover:text-gray-600 underline">
-                                            No thanks, I hate saving money
-                                        </button>
-                                    </div>
-                                </div>
-                                {!isPro && <div className="bg-gray-50 py-2 text-[9px] text-center text-gray-400 border-t">⚡ Powered by ReadyFlow</div>}
-                            </div>
-                        )}
-
                     </div>
                 </div>
             </div>
@@ -822,6 +720,39 @@ export default function PopupBuilder() {
           </div>
         </div>
       </div>
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-[#111] border border-gray-700 p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-in zoom-in-95 duration-200">
+                <button onClick={() => setShowUpgradeModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X size={20}/></button>
+                
+                <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Lock size={32} className="text-orange-500" />
+                </div>
+                
+                <h3 className="text-xl font-bold text-white mb-2">Premium Feature Locked</h3>
+                <p className="text-gray-400 mb-6 text-sm leading-relaxed">
+                    Advanced features like <strong>No Watermark</strong>, <strong>Pro Templates</strong>, and <strong>Custom Branding</strong> are only available on the Pro Plan.
+                </p>
+
+                <div className="flex flex-col gap-3">
+                    <button 
+                        onClick={() => router.push('/pricing')} 
+                        className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-orange-500/20"
+                    >
+                        Upgrade Now - ₹29
+                    </button>
+                    <button 
+                        onClick={() => setShowUpgradeModal(false)}
+                        className="w-full py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors"
+                    >
+                        Maybe Later
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 }

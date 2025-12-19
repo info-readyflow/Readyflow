@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, provider } from "@/lib/firebase"; 
 import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
-import { createUserProfile } from "@/lib/db"; // Connecting to the DB file we made
+import { createUserProfile } from "@/lib/db"; 
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -12,7 +12,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // If already logged in, send to dashboard
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
         if (user) router.push("/dashboard");
@@ -25,7 +24,7 @@ export default function LoginPage() {
     try {
       const result = await signInWithPopup(auth, provider);
       
-      // THIS IS THE KEY PART: Create the database entry
+      // AWAIT ensures the profile is created before moving to dashboard
       await createUserProfile(result.user);
       
       router.push("/dashboard");
@@ -38,13 +37,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      
-      {/* Background Effects */}
       <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-500/20 rounded-full blur-[100px] pointer-events-none"></div>
 
       <div className="relative z-10 w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-2xl">
-        
         <Link href="/" className="inline-flex items-center text-gray-500 hover:text-white mb-8 text-sm transition-colors">
           <ArrowLeft size={16} className="mr-2" /> Back to Home
         </Link>
