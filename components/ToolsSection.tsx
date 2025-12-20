@@ -269,7 +269,7 @@ export default function ToolsSection() {
         {/* CTA Section */}
         <div className="mt-16 text-center animate-fadeIn">
           <p className="text-gray-400 mb-6">
-            More tools launching every month. Join 10,000+ entrepreneurs already saving on SaaS.
+            More tools launching every month. Join 100+ entrepreneurs already saving on SaaS.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <button className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-orange-500/50 transition-all duration-300 hover:-translate-y-1">
