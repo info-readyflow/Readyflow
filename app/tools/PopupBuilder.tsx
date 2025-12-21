@@ -191,13 +191,43 @@ export default function PopupBuilder() {
   };
 
   const generateCode = () => {
-    // FIX: Removed hidden link for Pro users. Only render visible link for Free users.
     const watermarkHTML = isPro 
       ? "" 
       : `
     <a href="https://readyflow.in" target="_blank" style="display:block; margin-top:15px; font-size:11px; color:#cbd5e1; text-decoration:none; font-weight:500; font-family:sans-serif;">
       ⚡ Powered by ReadyFlow
     </a>`;
+
+    // --- REUSABLE ROBUST COPY ENGINE FOR CLIENT SITES ---
+    const copyScript = `
+      function rfCopy(text, btn) {
+        var originalText = btn.innerText;
+        function fallback() {
+          var textArea = document.createElement("textarea");
+          textArea.value = text;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-9999px";
+          textArea.style.top = "0";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          try { document.execCommand('copy'); } catch (err) { console.error("Copy error:", err); }
+          document.body.removeChild(textArea);
+          btn.innerText = 'COPIED!';
+          setTimeout(function() { btn.innerText = originalText; }, 2000);
+        }
+        if (!navigator.clipboard) { 
+          fallback(); 
+        } else {
+          navigator.clipboard.writeText(text).then(function() {
+            btn.innerText = 'COPIED!';
+            setTimeout(function() { btn.innerText = originalText; }, 2000);
+          }).catch(function() { 
+            fallback(); 
+          });
+        }
+      }
+    `;
 
     if (activeTemplate === 'simple') {
       return `<style>
@@ -218,11 +248,12 @@ export default function PopupBuilder() {
     <span style="font-size:40px; display:block; margin-bottom:15px;">🎁</span>
     <h2 class="rf-title">${content.headline}</h2>
     <p class="rf-text">${content.subheadline}</p>
-    <button class="rf-btn" onclick="alert('Code: ${content.couponCode}')">${content.buttonText}</button>
+    <button class="rf-btn" onclick="rfCopy('${content.couponCode}', this)">${content.buttonText}</button>
     ${watermarkHTML}
   </div>
 </div>
 <script>
+  ${copyScript}
   setTimeout(() => { document.getElementById('rf-overlay').classList.add('show'); }, ${content.delay * 1000});
 </script>`;
     }
@@ -252,13 +283,14 @@ export default function PopupBuilder() {
       <p class="rf-sub">${content.subheadline}</p>
       <div class="rf-coupon">
         <span class="rf-code">${content.couponCode}</span>
-        <button class="rf-copy" onclick="navigator.clipboard.writeText('${content.couponCode}');this.innerText='COPIED!'">${content.buttonText}</button>
+        <button class="rf-copy" onclick="rfCopy('${content.couponCode}', this)">${content.buttonText}</button>
       </div>
       ${watermarkHTML}
     </div>
   </div>
 </div>
 <script>
+  ${copyScript}
   setTimeout(() => { document.getElementById('rf-overlay').classList.add('show'); }, ${content.delay * 1000});
 </script>`;
     }
@@ -732,7 +764,7 @@ export default function PopupBuilder() {
                 
                 <h3 className="text-xl font-bold text-white mb-2">Premium Feature Locked</h3>
                 <p className="text-gray-400 mb-6 text-sm leading-relaxed">
-                    Advanced features like <strong>No Watermark</strong>, <strong>Pro Templates</strong>, and <strong>Custom Branding</strong> are only available on the Pro Plan.
+                    Advanced features like <strong className="text-white font-bold">No Watermark</strong>, <strong className="text-white font-bold">Pro Templates</strong>, and <strong className="text-white font-bold">Custom Branding</strong> are only available on the Pro Plan.
                 </p>
 
                 <div className="flex flex-col gap-3">
