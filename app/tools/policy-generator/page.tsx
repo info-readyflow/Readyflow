@@ -1,185 +1,297 @@
 "use client";
 
-import React, { useState } from 'react';
-import PolicyGenerator from '../PolicyGenerator'; 
-import { 
-  ArrowLeft, ShieldCheck, BookOpen, Settings, 
-  Zap, ArrowRight, Calendar as CalendarIcon, Clock, X 
-} from 'lucide-react';
-import Link from 'next/link';
+import React, { useState, useEffect } from "react";
+import Head from "next/head";
+import PolicyGenerator from "../PolicyGenerator"; // Path check kar lena
+import {
+  ArrowLeft,
+  ShieldCheck,
+  BookOpen,
+  Settings,
+  Zap,
+  ArrowRight,
+  Calendar as CalendarIcon,
+  Clock,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+
+// --- DATABASE SIMULATION (Yahan se text change hoga) ---
+const PAGE_DATA = {
+  id: "policy-generator",
+  slug: "policy-generator",
+  hero: {
+    badge: "Razorpay & Paytm Approved",
+    title:
+      "India's Only <span class='text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600'>Compliance Ready</span> Policy Generator",
+    subtitle:
+      "Stop using generic US/UK templates. Get KYC-ready Privacy Policies & Refund Terms designed for Indian Payment Gateways.",
+    stats: "Trusted by 340+ Indian D2C Brands",
+  },
+  seo: {
+    title: "ReadyFlow Policy Generator — Razorpay & Paytm Compliant",
+    desc:
+      "Generate India-specific Privacy Policy & Refund Terms for Razorpay/Paytm approvals. Copy-paste to Shopify, WooCommerce or any site.",
+    schemaType: "SoftwareApplication",
+    rating: "4.9",
+    reviewCount: "342",
+    canonical: "https://readyflow.in/tools/policy-generator",
+    ogImage: "https://readyflow.in/og/policy-generator.png",
+  },
+  faq: [
+    {
+      q: "Are these policies valid for Razorpay approval?",
+      a: "Yes, includes mandatory Grievance Officer details.",
+    },
+    { q: "Is it really free?", a: "Yes, zero hidden charges." },
+    { q: "Will it work for WooCommerce?", a: "Absolutely. Just copy and paste." },
+  ],
+  // --- STICKY BANNER SETTINGS ---
+  stickyCta: {
+    show: true,
+    text: "RTO killing profits?",
+    btnText: "BOOK AUDIT", // Button Text
+    price: "₹1999", // Price
+  },
+};
+
+function buildJsonLd() {
+  // SoftwareApplication schema
+  const appSchema: any = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: PAGE_DATA.seo.title,
+    url: PAGE_DATA.seo.canonical,
+    description: PAGE_DATA.seo.desc,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: PAGE_DATA.seo.rating,
+      reviewCount: PAGE_DATA.seo.reviewCount,
+    },
+  };
+
+  // FAQ schema
+  const faqSchema: any = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: PAGE_DATA.faq.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: f.a,
+      },
+    })),
+  };
+
+  // Breadcrumbs (helps indexing)
+  const breadcrumbSchema: any = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Tools",
+        item: "https://readyflow.in/tools",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Policy Generator",
+        item: PAGE_DATA.seo.canonical,
+      },
+    ],
+  };
+
+  return JSON.stringify([appSchema, faqSchema, breadcrumbSchema]);
+}
 
 export default function PolicyPage() {
-  // --- SCHEDULER STATE ---
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
   const [meetingStep, setMeetingStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  // --- SEO SCHEMAS ---
-  const toolSchema = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "ReadyFlow Razorpay Approved Policy Generator",
-    "operatingSystem": "All",
-    "applicationCategory": "BusinessApplication",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
-    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "ratingCount": "342" },
-    "description": "Create Indian payment gateway compliant Privacy Policy and Refund Terms in 2 minutes."
-  };
-
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "Are these policies valid for Razorpay approval?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Yes, these templates include mandatory clauses like Grievance Officer details and physical address requirements that Indian payment gateways demand for KYC."
-        }
-      }
-    ]
-  };
-
-  // --- HANDLER: WHATSAPP SCHEDULING ---
+  // --- HANDLER ---
   const handleScheduleSubmit = () => {
     if (!selectedDate || !selectedTime) return;
-    const dateStr = selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    const msg = `Hi ReadyFlow! I used the Policy Generator and I'd like to schedule a meeting to discuss my Shopify store setup.\n\n*Date:* ${dateStr}\n*Time Slot:* ${selectedTime}\n*Topic:* Full Store Setup & RTO Strategy`;
-    
-    window.open(`https://wa.me/918602555840?text=${encodeURIComponent(msg)}`, '_blank');
+
+    const dateStr = selectedDate.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+
+    const msg = `Hi ReadyFlow! I'm on the *${PAGE_DATA.seo.title}* page.
+I'd like to schedule a call.
+
+*Date:* ${dateStr}
+*Time Slot:* ${selectedTime}
+
+Please let me know if this time slot is available.`;
+
+    window.open(
+      `https://wa.me/918602555840?text=${encodeURIComponent(msg)}`,
+      "_blank",
+      "noopener"
+    );
+
     setIsSchedulerOpen(false);
   };
 
   return (
-    <main className="min-h-screen bg-black text-white pt-24 pb-40 overflow-x-hidden font-sans">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(toolSchema) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+    <main className="min-h-screen bg-[#050505] text-white pt-24 pb-40 overflow-x-hidden font-sans selection:bg-orange-500/30">
+      <Head>
+        <title>{PAGE_DATA.seo.title}</title>
+        <meta name="description" content={PAGE_DATA.seo.desc} />
+        <link rel="canonical" href={PAGE_DATA.seo.canonical} />
+        {/* Open Graph */}
+        <meta property="og:title" content={PAGE_DATA.seo.title} />
+        <meta property="og:description" content={PAGE_DATA.seo.desc} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={PAGE_DATA.seo.canonical} />
+        <meta property="og:image" content={PAGE_DATA.seo.ogImage} />
+        {/* Twitter card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={PAGE_DATA.seo.title} />
+        <meta name="twitter:description" content={PAGE_DATA.seo.desc} />
+        <meta name="twitter:image" content={PAGE_DATA.seo.ogImage} />
+        {/* Robots */}
+        <meta name="robots" content="index,follow" />
+        {/* Structured data */}
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: buildJsonLd() }}
+        />
+      </Head>
 
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
-        <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-8 transition-colors text-sm font-bold uppercase tracking-widest">
-            <ArrowLeft size={14} /> Back to Toolkit
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-gray-500 hover:text-orange-500 mb-12 transition-colors text-xs font-bold uppercase tracking-[0.2em]"
+        >
+          <ArrowLeft size={14} /> Back to Toolkit
         </Link>
 
-        {/* HERO SECTION */}
-        <div className="text-center mb-16">
-            <h1 className="text-5xl md:text-7xl font-black mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500 leading-[1.1]">
-                Razorpay Approved <br /> Policy Generator
-            </h1>
-            <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-                India ke top Shopify stores isi tool ka use karte hain KYC approval ke liye. 
-                <span className="text-white font-bold"> Simple. Fast. Free.</span>
-            </p>
+        {/* --- HERO --- */}
+        <div className="text-center mb-20 relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-orange-600/20 blur-[100px] -z-10 rounded-full pointer-events-none" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-orange-400 text-xs font-bold tracking-wider mb-6">
+            <ShieldCheck size={14} /> {PAGE_DATA.hero.badge}
+          </div>
+          <h1
+            className="text-5xl md:text-7xl font-black mb-6 text-white leading-[1.1] tracking-tight"
+            dangerouslySetInnerHTML={{ __html: PAGE_DATA.hero.title }}
+          />
+          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-8">
+            {PAGE_DATA.hero.subtitle}
+          </p>
         </div>
 
-        {/* THE ACTUAL TOOL COMPONENT */}
+        {/* --- TOOL --- */}
         <div className="relative z-20">
-            <PolicyGenerator />
+          <PolicyGenerator />
         </div>
 
-        {/* --- SEO CONTENT WING --- */}
-        <div className="mt-32 max-w-4xl mx-auto border-t border-white/10 pt-20">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
-                <div>
-                    <h2 className="text-3xl font-bold mb-6 flex items-center gap-3 text-white">
-                        <BookOpen className="text-orange-500" /> How to use?
-                    </h2>
-                    <ul className="space-y-4">
-                        <StepItem step="1" text="Enter your Official Business Name and Email." />
-                        <StepItem step="2" text="Add your registered physical address (Mandatory for KYC)." />
-                        <StepItem step="3" text="Click 'Generate' and copy the text to your Shopify Settings." />
-                    </ul>
-                </div>
-                <div>
-                    <h2 className="text-3xl font-bold mb-6 flex items-center gap-3 text-white">
-                        <Zap className="text-blue-500" /> Why this tool?
-                    </h2>
-                    <p className="text-gray-400 leading-relaxed text-sm">
-                        Standard Shopify templates mein "Indian Grievance Officer" ki details nahi hoti. 
-                        Aapka <strong className="text-white">Razorpay ya Paytm</strong> approval tabhi hota hai jab aapke paas localized Indian clauses hon. 
-                        ReadyFlow ye sab automate kar deta hai.
-                    </p>
-                </div>
+        {/* --- CONTENT --- */}
+        <div className="mt-32 max-w-5xl mx-auto border-t border-white/5 pt-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 mb-24">
+            <div>
+              <h2 className="text-2xl font-bold mb-8 flex items-center gap-3 text-white">
+                How to use?
+              </h2>
+              <ul className="space-y-6 border-l border-white/10 pl-6 ml-5">
+                <StepItem step="01" text="Enter your Official Business Name and Email." />
+                <StepItem step="02" text="Add your registered physical address." />
+                <StepItem step="03" text="Click 'Generate' and copy the text." />
+              </ul>
             </div>
+            <div>
+              <h2 className="text-2xl font-bold mb-8 flex items-center gap-3 text-white">Why this tool?</h2>
+              <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+                <p className="text-gray-400 text-sm">
+                  Standard Shopify templates mein <strong>"Indian Grievance Officer"</strong> nahi hota. Razorpay approval ke liye ye zaroori hai.
+                </p>
+              </div>
+            </div>
+          </div>
 
-            {/* --- GENERALIZED INTERNAL LINKING BLOCK --- */}
-            <div className="bg-gradient-to-br from-orange-600 to-red-600 p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                    <Settings size={120} />
-                </div>
-                <div className="relative z-10">
-                    <h3 className="text-3xl font-black text-white mb-4 italic leading-tight">Bhai, itna manual <br/> setup kyun?</h3>
-                    <p className="text-white/80 font-bold mb-8 max-w-xl">
-                        Policies generate karna toh bas shuruat hai. Hum aapka poora store configure kar sakte hain with RTO protection and premium design.
-                    </p>
-                    <div className="flex flex-wrap gap-4">
-                        <button 
-                            onClick={() => setIsSchedulerOpen(true)}
-                            className="px-8 py-4 bg-black text-white font-black rounded-2xl flex items-center gap-2 hover:scale-105 transition-all shadow-xl"
-                        >
-                            Book a Strategy Call <ArrowRight size={18} />
-                        </button>
-                        <Link href="/portfolio" className="px-8 py-4 bg-white/10 backdrop-blur-md text-white border border-white/20 font-black rounded-2xl hover:bg-white/20 transition-all">
-                            View Our Work
-                        </Link>
-                    </div>
-                </div>
+          {/* --- IN-PAGE CTA --- */}
+          <div className="bg-gradient-to-r from-[#1a1a1a] to-[#0a0a0a] border border-white/10 p-10 rounded-[2.5rem] relative overflow-hidden group">
+            <div className="relative z-10">
+              <h3 className="text-3xl font-black text-white mb-4">Manual Setup se pareshan?</h3>
+              <button
+                onClick={() => setIsSchedulerOpen(true)}
+                className="px-8 py-4 bg-orange-600 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-orange-500 hover:scale-105 transition-all"
+                aria-label="Book Strategy Call"
+              >
+                Book Strategy Call <ArrowRight size={18} />
+              </button>
             </div>
+          </div>
 
-            {/* FAQ SECTION */}
-            <div className="mt-32">
-                <h2 className="text-3xl font-bold mb-10 text-center text-white">Common Doubts</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FaqBox q="Is it really free?" a="Yes, zero hidden charges. We built this to help the Indian D2C community grow." />
-                    <FaqBox q="Will it work for WooCommerce?" a="Absolutely. The text is platform-independent. Just copy and paste." />
-                </div>
-            </div>
+          {/* --- FAQ --- */}
+          <div className="mt-32 max-w-3xl mx-auto space-y-4">
+            {PAGE_DATA.faq.map((item, idx) => (
+              <FaqBox key={idx} q={item.q} a={item.a} />
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* --- STICKY BANNER (Calling the Fixed Component) --- */}
+      <StickyBanner data={PAGE_DATA.stickyCta} onOpenScheduler={() => setIsSchedulerOpen(true)} />
 
       {/* --- SCHEDULER MODAL --- */}
       {isSchedulerOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#111] border border-white/10 rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl relative">
-            <button onClick={() => setIsSchedulerOpen(false)} className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors">
+          <div className="bg-[#111] border border-white/10 rounded-[2rem] w-full max-w-md overflow-hidden p-8 relative shadow-2xl animate-in zoom-in-95 duration-300">
+            <button onClick={() => setIsSchedulerOpen(false)} className="absolute top-6 right-6 text-gray-500 hover:text-white" aria-label="Close scheduler">
               <X size={24} />
             </button>
-            <div className="p-8">
-                {meetingStep === 1 ? (
-                  <div className="animate-in slide-in-from-right duration-300">
-                    <CalendarIcon className="text-orange-500 mb-4" size={40} />
-                    <h3 className="text-2xl font-bold mb-6 text-white">Choose a Date</h3>
-                    <div className="bg-white/5 rounded-2xl p-4 mb-8">
-                        <SimpleCalendar selected={selectedDate} onSelect={(d) => {setSelectedDate(d); setMeetingStep(2);}} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="animate-in slide-in-from-right duration-300 text-center">
-                    <Clock className="text-blue-500 mb-4 mx-auto" size={40} />
-                    <h3 className="text-2xl font-bold mb-6 text-white">Select a Time Slot</h3>
-                    <div className="grid grid-cols-1 gap-2 mb-8">
-                        {["10 AM - 12 PM", "12 PM - 02 PM", "02 PM - 04 PM", "04 PM - 06 PM", "06 PM - 08 PM"].map(slot => (
-                            <button 
-                                key={slot}
-                                onClick={() => setSelectedTime(slot)}
-                                className={`p-4 rounded-xl text-sm font-bold border transition-all ${selectedTime === slot ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400'}`}
-                            >
-                                {slot}
-                            </button>
-                        ))}
-                    </div>
-                    <button 
-                        disabled={!selectedTime}
-                        onClick={handleScheduleSubmit} 
-                        className="w-full py-4 bg-orange-600 text-white font-bold rounded-2xl shadow-xl hover:bg-orange-500 transition-all disabled:opacity-50"
+
+            {meetingStep === 1 ? (
+              <div className="animate-in slide-in-from-right">
+                <CalendarIcon className="text-orange-500 mb-4" size={32} />
+                <h3 className="text-2xl font-bold mb-6 text-white">Select Date</h3>
+                <div className="bg-[#050505] border border-white/10 rounded-2xl p-4">
+                  <SimpleCalendar
+                    selected={selectedDate}
+                    onSelect={(d) => {
+                      setSelectedDate(d);
+                      setMeetingStep(2);
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="animate-in slide-in-from-right text-center">
+                <h3 className="text-2xl font-bold mb-8 text-white">Choose Time Slot</h3>
+                <div className="grid grid-cols-2 gap-3 mb-8">
+                  {["10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM", "08:00 PM"].map((slot) => (
+                    <button
+                      key={slot}
+                      onClick={() => setSelectedTime(slot)}
+                      className={`p-3 rounded-xl font-bold text-xs border ${selectedTime === slot ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-gray-500"}`}
+                      aria-pressed={selectedTime === slot}
                     >
-                        CONFIRM ON WHATSAPP
+                      {slot}
                     </button>
-                    <button onClick={() => setMeetingStep(1)} className="mt-4 text-xs text-gray-500 underline block mx-auto">Change Date</button>
-                  </div>
-                )}
-            </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleScheduleSubmit}
+                  disabled={!selectedTime}
+                  className="w-full py-4 bg-orange-600 text-white font-black rounded-xl hover:bg-orange-500 transition-all disabled:opacity-50"
+                >
+                  CONFIRM ON WHATSAPP
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -187,45 +299,115 @@ export default function PolicyPage() {
   );
 }
 
+// --- FIXED STICKY BANNER COMPONENT ---
+function StickyBanner({ data, onOpenScheduler }: { data: any; onOpenScheduler: () => void }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400 && !isDismissed) setIsVisible(true);
+      else setIsVisible(false);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isDismissed]);
+
+  if (!isVisible || isDismissed) return null;
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[999] animate-in slide-in-from-right duration-500">
+      <div
+        onClick={onOpenScheduler} // Poora card clickable
+        className="bg-[#111] backdrop-blur-xl border border-white/20 p-2 pr-6 rounded-[1.5rem] shadow-2xl flex items-center gap-4 cursor-pointer hover:border-orange-500/50 transition-all group max-w-[350px]"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter') onOpenScheduler(); }}
+        aria-label="Open booking scheduler"
+      >
+        {/* Logo Image */}
+        <div className="h-16 w-16 bg-black rounded-2xl flex items-center justify-center shrink-0 border border-white/10 p-1 overflow-hidden">
+          <img
+            src="/logo.png"
+            alt="ReadyFlow logo"
+            className="w-full h-full object-contain"
+            onError={(e) => {
+              // Fallback agar image na mile
+              e.currentTarget.style.display = "none";
+              // eslint-disable-next-line no-param-reassign
+              e.currentTarget.parentElement!.innerHTML = '<span class="text-orange-500 text-xs font-bold">LOGO</span>';
+            }}
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <p className="text-white font-black text-sm leading-tight mb-1">{data.text}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-orange-500 font-bold text-[10px] tracking-widest uppercase hover:underline decoration-orange-500 underline-offset-2">
+              {data.btnText}
+            </span>
+            <span className="text-xs font-bold text-white bg-white/10 px-2 py-0.5 rounded-full">{data.price}</span>
+          </div>
+        </div>
+
+        {/* Close Button (Ispe click karne se sirf band hoga, scheduler nahi khulega) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsDismissed(true);
+          }}
+          className="absolute -top-2 -right-2 bg-[#222] text-gray-400 hover:text-white rounded-full p-1 border border-white/10 shadow-lg z-20"
+          aria-label="Dismiss sticky banner"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- HELPER COMPONENTS ---
-
-function StepItem({ step, text }: { step: string, text: string }) {
-    return (
-        <li className="flex items-start gap-4">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 text-orange-500 flex items-center justify-center text-xs font-bold border border-white/10">{step}</span>
-            <span className="text-gray-400 text-sm leading-relaxed">{text}</span>
-        </li>
-    );
+function StepItem({ step, text }: { step: string; text: string }) {
+  return (
+    <li className="relative pb-6 last:pb-0">
+      <span className="absolute -left-[29px] top-0 w-6 h-6 rounded-full bg-[#111] border border-orange-500/50 text-orange-500 flex items-center justify-center text-[10px] font-bold z-10">
+        {step}
+      </span>
+      <span className="text-gray-300 text-sm leading-relaxed block pt-0.5">{text}</span>
+    </li>
+  );
 }
-
-function FaqBox({ q, a }: { q: string, a: string }) {
-    return (
-        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl hover:border-white/20 transition-colors">
-            <h4 className="font-bold text-white mb-2 text-sm">{q}</h4>
-            <p className="text-gray-500 text-xs leading-relaxed">{a}</p>
-        </div>
-    );
+function FaqBox({ q, a }: { q: string; a: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="bg-white/5 border border-white/5 rounded-xl overflow-hidden">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-5 text-left hover:bg-white/5" aria-expanded={isOpen}>
+        <span className="font-bold text-gray-200 text-sm">{q}</span>
+        <ArrowRight size={14} className={`transition-transform duration-300 ${isOpen ? "rotate-270" : "rotate-90"}`} />
+      </button>
+      {isOpen && <div className="p-5 pt-0 text-gray-500 text-sm border-t border-white/5">{a}</div>}
+    </div>
+  );
 }
-
-function SimpleCalendar({ selected, onSelect }: { selected: Date | null, onSelect: (d: Date) => void }) {
-    const days = [];
-    const today = new Date();
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + i);
-        days.push(d);
-    }
-    return (
-        <div className="grid grid-cols-4 gap-2">
-            {days.map((d, i) => {
-                const isSelected = selected && d.toDateString() === selected.toDateString();
-                return (
-                    <button key={i} onClick={() => onSelect(d)} className={`flex flex-col items-center p-3 rounded-xl border transition-all ${isSelected ? 'bg-orange-500 border-orange-500 text-white' : 'bg-black/40 border-white/10 text-gray-500 hover:text-white'}`}>
-                        <span className="text-[8px] uppercase font-bold">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-                        <span className="text-sm font-black">{d.getDate()}</span>
-                    </button>
-                )
-            })}
-        </div>
-    );
+function SimpleCalendar({ selected, onSelect }: { selected: Date | null; onSelect: (d: Date) => void }) {
+  const days = Array.from({ length: 8 }, (_, i) => {
+    const d = new Date();
+    d.setDate(new Date().getDate() + i + 1);
+    return d;
+  });
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {days.map((d, i) => (
+        <button
+          key={i}
+          onClick={() => onSelect(d)}
+          className={`flex flex-col items-center p-2 rounded-xl border ${selected?.toDateString() === d.toDateString() ? "bg-orange-500 border-orange-500 text-white" : "bg-white/5 border-white/10 text-gray-500"}`}
+          aria-label={`Select ${d.toDateString()}`}
+        >
+          <span className="text-[9px] uppercase font-bold">{d.toLocaleDateString("en-US", { weekday: "short" })}</span>
+          <span className="text-sm font-black">{d.getDate()}</span>
+        </button>
+      ))}
+    </div>
+  );
 }

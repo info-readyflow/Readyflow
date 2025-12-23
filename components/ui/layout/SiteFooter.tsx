@@ -21,7 +21,7 @@ export function SiteFooter() {
                   className="h-full w-auto object-contain"
                 />
               </div>
-              <span className="font-bold text-lg tracking-tight text-white uppercase italic">
+              <span className="font-bold text-lg tracking-tight text-white uppercase">
                 ReadyFlow
               </span>
             </Link>

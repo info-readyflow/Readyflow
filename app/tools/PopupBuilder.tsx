@@ -289,12 +289,7 @@ export default function PopupBuilder() {
       <div className="container mx-auto px-6 max-w-6xl relative z-10">
         
         {/* Header */}
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl md:text-6xl font-black mb-4 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500 pb-1 tracking-tighter">
-            Build High-Converting Popups
-          </h1>
-          <p className="text-gray-400 text-lg">No coding required. Customize, preview, and deploy in minutes.</p>
-        </div>
+        
         
         <div className="flex flex-col lg:flex-row gap-8 items-start mb-24">
           
@@ -509,11 +504,7 @@ export default function PopupBuilder() {
           </div>
         </div>
 
-        {/* --- TESTIMONIAL --- */}
-        <div className="max-w-4xl mx-auto text-center border-t border-white/5 pt-20">
-          <p className="text-2xl md:text-4xl font-medium text-gray-300 italic leading-relaxed mb-10">&quot;Unlike heavy apps that load 2MB of JS, this script is only 5KB. It ensures your store remains fast while still capturing every lead.&quot;</p>
-          <div className="flex flex-col items-center gap-3"><img src="/logo.png" alt="Aditya" className="w-12 h-12 grayscale brightness-200" /><span className="font-black text-sm uppercase tracking-[0.2em] text-orange-500">— Aditya, ReadyFlow Founder</span></div>
-        </div>
+        
       </div>
 
       {/* --- UPGRADE MODAL --- */}

@@ -1,36 +1,30 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+// FIX: Added 'X' to imports
 import { 
   ShieldCheck, Code2, Check, Monitor, Smartphone, 
-  Lock, Loader2, X, Clock, Calendar as CalendarIcon, ArrowRight, Zap
+  Lock, Loader2, X 
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { auth, db } from "@/lib/firebase"; 
-import { doc, getDoc } from "firebase/firestore"; 
+import { doc, getDoc, updateDoc, increment } from "firebase/firestore"; 
 
 const RTO_LIST = ["801108","800027","800020","110094","110095","110096","122107","249202"];
 
 export default function RTOShieldBuilder() {
-  const router = useRouter(); // ✅ ERROR FIX: router initialized
+  const router = useRouter(); 
   const [isMounted, setIsMounted] = useState(false);
-  const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
-  const [showStickyBanner, setShowStickyBanner] = useState(false);
-  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
-  const [meetingStep, setMeetingStep] = useState(1);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   
-  const [isPro, setIsPro] = useState(false); 
   const [hasPremiumPlan, setHasPremiumPlan] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(true);
   const [copied, setCopied] = useState(false);
   const [devicePreview, setDevicePreview] = useState<'desktop' | 'mobile'>('desktop');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isPro, setIsPro] = useState(false); 
 
-  // Settings State - Now includes Sub-headline
+  // Settings State
   const [settings, setSettings] = useState({
     headline: "Verify delivery",
     subheadline: "SECURE CHECKOUT ENABLED", 
@@ -55,21 +49,22 @@ export default function RTOShieldBuilder() {
         setLoadingPlan(false);
     };
     checkPlan();
+  }, []);
 
-    const handleScroll = () => {
-      if (window.scrollY > 500 && !isBannerDismissed) setShowStickyBanner(true);
-      else setShowStickyBanner(false);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isBannerDismissed]);
-
-  const handleScheduleSubmit = () => {
-    if (!selectedDate || !selectedTime) return;
-    const dateStr = selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    const msg = `Hi ReadyFlow! I want to book the RTO Audit (₹1999). Tool use karne ke baad I need a diagnosis.\n\n*Date:* ${dateStr}\n*Slot:* ${selectedTime}`;
-    window.open(`https://wa.me/918602555840?text=${encodeURIComponent(msg)}`, '_blank');
-    setIsSchedulerOpen(false);
+  // Tracking Function for Dashboard
+  const trackToolUsage = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          toolsUsed: increment(1),
+          lastToolUsedAt: new Date()
+        });
+      } catch (err) {
+        console.error("Firestore Tracking Error:", err);
+      }
+    }
   };
 
   const generateSnippet = () => {
@@ -175,8 +170,17 @@ export default function RTOShieldBuilder() {
             </div>
           </div>
 
-          <button onClick={async () => { await navigator.clipboard.writeText(generateSnippet()); setCopied(true); setTimeout(()=>setCopied(false), 2000); }} className="w-full bg-indigo-600 text-white font-black py-6 rounded-[2rem] hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 text-sm uppercase tracking-widest shadow-2xl">
-            {copied ? <Check size={20}/> : <Code2 size={20}/>} {copied ? 'Snippet Copied!' : 'Generate Shield Code'}
+          <button 
+            onClick={async () => { 
+              await navigator.clipboard.writeText(generateSnippet()); 
+              setCopied(true); 
+              await trackToolUsage(); 
+              setTimeout(()=>setCopied(false), 2000); 
+            }} 
+            className="w-full bg-indigo-600 text-white font-black py-6 rounded-[2rem] hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 text-sm uppercase tracking-widest shadow-2xl"
+          >
+            {copied ? <Check size={20}/> : <Code2 size={20}/>} 
+            {copied ? 'Code Copied!' : 'Copy Shield Code'}
           </button>
         </div>
 
@@ -215,88 +219,9 @@ export default function RTOShieldBuilder() {
           </div>
         </div>
       </div>
-
-      {/* --- AUDIT & SCHEDULER SECTION --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-32">
-          <div className="lg:col-span-7 bg-[#0a0a0a] border-2 border-indigo-500/20 p-8 md:p-16 rounded-[3rem] shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
-              <h3 className="text-3xl md:text-5xl font-black text-white mb-6 leading-none tracking-tighter uppercase leading-none italic">Audit Your Store <br /><span className="text-gray-600 italic text-2xl md:text-3xl">Get the root cause.</span></h3>
-              <p className="text-gray-400 text-base md:text-lg mb-10 leading-relaxed max-w-lg font-medium italic">This tool is just a glimpse. Hum aapke data mein se root issues dhund ke bta denge.</p>
-              <div className="flex flex-wrap items-center gap-6">
-                  <div className="px-8 py-4 bg-white text-black font-black text-2xl rounded-2xl shadow-xl shadow-white/5">₹1,999 <span className="text-xs text-gray-400 line-through ml-2">₹4,999</span></div>
-                  <button onClick={() => setIsSchedulerOpen(true)} className="font-black text-indigo-400 uppercase tracking-widest text-xs flex items-center gap-2 hover:text-indigo-300 transition-all">Schedule Audit Slot <ArrowRight size={16} /></button>
-              </div>
-          </div>
-          <div className="lg:col-span-5 bg-white/[0.02] border border-white/5 p-10 rounded-[3rem] flex flex-col justify-center gap-6">
-              <div className="space-y-4">
-                  <div className="flex items-center gap-4 text-gray-500 font-bold"><Zap size={16} className="text-indigo-500"/> Pincode Serviceability Analysis</div>
-                  <div className="flex items-center gap-4 text-gray-500 font-bold"><Zap size={16} className="text-indigo-500"/> Fake Pattern Detection Setup</div>
-                  <div className="flex items-center gap-4 text-gray-500 font-bold"><Zap size={16} className="text-indigo-500"/> Backend Ops Optimization</div>
-              </div>
-          </div>
-      </div>
-
-      {/* --- STICKY BANNER --- */}
-      {showStickyBanner && !isBannerDismissed && (
-        <div className="fixed bottom-6 left-4 right-4 md:bottom-10 z-[100] animate-in slide-in-from-bottom-10 duration-700 pointer-events-none">
-            <div className="max-w-4xl mx-auto w-full pointer-events-auto">
-              <div className="bg-[#111]/95 border-2 border-white/10 p-3 md:p-4 rounded-full shadow-[0_40px_100px_rgba(0,0,0,0.9)] backdrop-blur-xl flex items-center justify-between gap-4 group hover:border-indigo-500/40 transition-all duration-500">
-                <div className="flex items-center gap-4 pl-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-black rounded-full overflow-hidden shrink-0 border border-white/10 shadow-lg group-hover:scale-110 transition-transform"><img src="/logo.png" alt="RF" className="w-full h-full object-cover" /></div>
-                  <div className="hidden sm:block text-left text-white"><h4 className="text-sm font-black tracking-tight leading-none uppercase italic">This is just a glimpse.</h4><p className="text-[9px] text-gray-500 mt-1 font-bold uppercase tracking-widest italic">Get audited to fix root issues.</p></div>
-                </div>
-                <div className="flex items-center gap-2 pr-1">
-                  <button onClick={() => setIsSchedulerOpen(true)} className="px-6 md:px-8 py-3 bg-white text-black font-black rounded-full text-[10px] uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-xl">Book Audit — ₹1999</button>
-                  <button onClick={() => setIsBannerDismissed(true)} className="p-3 text-gray-600 hover:text-white transition-colors"><X size={16}/></button>
-                </div>
-              </div>
-            </div>
-        </div>
-      )}
-
-      {/* --- SCHEDULER MODAL --- */}
-      {isSchedulerOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] w-full max-w-md overflow-hidden shadow-2xl relative">
-            <button onClick={() => setIsSchedulerOpen(false)} className="absolute top-8 right-8 text-gray-500 hover:text-white transition-all"><X size={28}/></button>
-            <div className="p-10">
-                {meetingStep === 1 ? (
-                  <div className="animate-in slide-in-from-right duration-500">
-                    <CalendarIcon className="text-indigo-500 mb-6" size={40} />
-                    <h3 className="text-3xl font-black mb-2 text-white tracking-tighter uppercase">Select Audit Date</h3>
-                    <div className="bg-white/5 rounded-3xl p-4 mb-8">
-                        <div className="grid grid-cols-4 gap-3">
-                            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => {
-                                const d = new Date(); d.setDate(d.getDate() + i);
-                                return (
-                                    <button key={i} onClick={() => { setSelectedDate(d); setMeetingStep(2); }} className={`flex flex-col items-center p-4 rounded-2xl border transition-all ${selectedDate?.toDateString() === d.toDateString() ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-black/40 border-white/10 text-gray-600 hover:text-white hover:border-indigo-500/30'}`}>
-                                        <span className="text-[8px] uppercase font-black mb-1 opacity-60">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-                                        <span className="text-sm font-black">{d.getDate()}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="animate-in slide-in-from-right duration-500 text-center">
-                    <Clock className="text-indigo-500 mb-6 mx-auto" size={40} />
-                    <h3 className="text-3xl font-black mb-8 tracking-tighter uppercase">Select Slot</h3>
-                    <div className="grid grid-cols-1 gap-3 mb-10">
-                        {["11 AM - 01 PM", "01 PM - 03 PM", "04 PM - 06 PM", "07 PM - 09 PM"].map(slot => (
-                            <button key={slot} onClick={() => setSelectedTime(slot)} className={`p-5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${selectedTime === slot ? 'bg-white text-black border-white scale-105 shadow-xl' : 'bg-white/5 border-white/10 text-gray-500 hover:border-indigo-500/50'}`}>{slot}</button>
-                        ))}
-                    </div>
-                    <button disabled={!selectedTime} onClick={handleScheduleSubmit} className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-2xl hover:bg-indigo-500 transition-all disabled:opacity-30 text-xs tracking-[0.2em] uppercase">Confirm on WhatsApp</button>
-                  </div>
-                )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- UPGRADE MODAL --- */}
-      {showUpgradeModal && (
+      
+       {/* --- UPGRADE MODAL --- */}
+       {showUpgradeModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/95 backdrop-blur-3xl p-6">
             <div className="bg-[#0a0a0a] border border-white/10 p-12 rounded-[4rem] w-full max-w-md text-center animate-in zoom-in-95 duration-500 shadow-[0_0_100px_rgba(59,130,246,0.1)]">
                 <button onClick={() => setShowUpgradeModal(false)} className="absolute top-8 right-8 text-gray-600 hover:text-white transition-all"><X size={28}/></button>
