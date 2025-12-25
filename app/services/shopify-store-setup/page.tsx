@@ -43,7 +43,7 @@ export default function ShopifySetupPage() {
             Shopify pe bechna <br className="hidden md:block" /> <span className="text-teal-500 text-italic">kese shuru karein?</span>
           </h1>
           <p className="text-gray-400 text-base md:text-xl max-w-3xl mx-auto leading-relaxed">
-            Stop searching for a <span className="text-white font-bold underline decoration-teal-500/50 italic px-1">website near me</span>. Build a high-converting store with India's premier Website in India development agency.
+            Stop searching for a partner to build your website, Because you just found one with readyflow.
           </p>
         </div>
 
